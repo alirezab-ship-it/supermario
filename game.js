@@ -137,9 +137,17 @@
     { x: 3500, min: 3350, max: 3700 },
   ];
 
-  // Purely decorative scenery (no collision) added for visual variety.
-  const bushDefs = [150, 550, 950, 1250, 1600, 2000, 2400, 2800, 3150, 3450, 3750];
-  const pipeDefs = [700, 1300, 2500, 3200];
+  // Bushes are purely decorative; pipes are solid (stand-on-able) and
+  // question blocks are solid + reward a coin when bumped from below.
+  const bushDefs = [150, 550, 1010, 1250, 1600, 2000, 2400, 2800, 3150, 3450, 3680];
+
+  const PIPE_W = 78, PIPE_H = 110;
+  const pipeDefs = [900, 2100, 3800]; // clear of goomba patrol ranges/pits
+  const pipeSolids = pipeDefs.map(x => ({
+    x: x - PIPE_W / 2, y: GROUND_Y - PIPE_H, w: PIPE_W, h: PIPE_H, type: 'pipe',
+  }));
+
+  const QBLOCK_SIZE = 40;
   const questionBlockDefs = [
     { x: 160, y: 230 }, { x: 210, y: 230 }, { x: 260, y: 230 },
     { x: 2320, y: 230 },
@@ -164,6 +172,8 @@
   let player = makePlayer();
   let coins = [];
   let goombas = [];
+  let questionBlocks = [];
+  let popups = []; // little "+coin" pop animations played above bumped blocks
   let solids = [];
   let score = 0;
   let lives = 3;
@@ -175,7 +185,12 @@
   function resetLevel() {
     coins = coinDefs.map(c => ({ ...c, r: 9, taken: false, bob: Math.random() * Math.PI * 2 }));
     goombas = goombaDefs.map(g => ({ x: g.x, y: GROUND_Y - 34, w: 32, h: 34, vx: -1.2, min: g.min, max: g.max, alive: true, squashTimer: 0 }));
-    solids = [...groundSegments(), ...platforms, ...stairs];
+    questionBlocks = questionBlockDefs.map(q => ({
+      x: q.x - QBLOCK_SIZE / 2, y: q.y - QBLOCK_SIZE / 2, w: QBLOCK_SIZE, h: QBLOCK_SIZE,
+      type: 'question', used: false, bumpTimer: 0,
+    }));
+    popups = [];
+    solids = [...groundSegments(), ...platforms, ...stairs, ...pipeSolids, ...questionBlocks];
   }
 
   function resetGame() {
@@ -236,8 +251,26 @@
       } else if (entity.vy < 0) {
         entity.y = s.y + s.h;
         entity.vy = 0;
+        if (s.type === 'question' && !s.used) bumpQuestionBlock(s);
       }
     }
+  }
+
+  function bumpQuestionBlock(block) {
+    block.used = true;
+    block.bumpTimer = 10;
+    score += 50;
+    playSound('coin');
+    popups.push({ x: block.x + block.w / 2, y: block.y, vy: -1.6, timer: 30 });
+  }
+
+  function updatePopups() {
+    for (const p of popups) {
+      p.y += p.vy;
+      p.vy += 0.05;
+      p.timer--;
+    }
+    popups = popups.filter(p => p.timer > 0);
   }
 
   function killPlayer() {
@@ -344,6 +377,12 @@
     }
   }
 
+  function updateQuestionBlocks() {
+    for (const q of questionBlocks) {
+      if (q.bumpTimer > 0) q.bumpTimer--;
+    }
+  }
+
   function update() {
     if (state === 'start') {
       return; // waiting for the player to press Start
@@ -352,6 +391,8 @@
       updatePlayer();
       updateGoombas();
       updateCoins();
+      updateQuestionBlocks();
+      updatePopups();
     } else if (state === 'dead') {
       stateTimer++;
       if (stateTimer > 60) {
@@ -477,21 +518,48 @@
     for (const x of pipeDefs) {
       const sx = x - cameraX;
       if (sx < -100 || sx > VIEW_W + 100) continue;
-      drawSpriteCentered(images.pipe, sx, GROUND_Y + 6, 110, false);
+      drawSpriteCentered(images.pipe, sx, GROUND_Y, PIPE_H, false);
     }
   }
 
   function drawQuestionBlocks() {
-    for (const q of questionBlockDefs) {
+    for (const q of questionBlocks) {
       const sx = q.x - cameraX;
       if (sx < -50 || sx > VIEW_W + 50) continue;
-      const size = 40;
+      // A quick upward "jiggle" the moment it's bumped.
+      const bumpOffset = q.bumpTimer > 0 ? -Math.sin((q.bumpTimer / 10) * Math.PI) * 6 : 0;
+      const dy = q.y + bumpOffset;
       if (imgReady('questionBlock')) {
-        ctx.drawImage(images.questionBlock, sx - size / 2, q.y - size / 2, size, size);
+        if (q.used) {
+          ctx.save();
+          ctx.filter = 'grayscale(0.85) brightness(0.75)';
+          ctx.drawImage(images.questionBlock, sx, dy, q.w, q.h);
+          ctx.restore();
+        } else {
+          ctx.drawImage(images.questionBlock, sx, dy, q.w, q.h);
+        }
       } else {
-        ctx.fillStyle = '#f2a63d';
-        ctx.fillRect(sx - size / 2, q.y - size / 2, size, size);
+        ctx.fillStyle = q.used ? '#8a6a3d' : '#f2a63d';
+        ctx.fillRect(sx, dy, q.w, q.h);
       }
+    }
+  }
+
+  function drawPopups() {
+    for (const p of popups) {
+      const sx = p.x - cameraX;
+      const alpha = Math.min(1, p.timer / 15);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      if (imgReady('coin')) {
+        ctx.drawImage(images.coin, sx - 12, p.y - 12, 24, 24);
+      } else {
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath();
+        ctx.arc(sx, p.y, 10, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
     }
   }
 
@@ -676,6 +744,7 @@
     drawQuestionBlocks();
     drawFlag();
     drawCoins();
+    drawPopups();
     drawGoombas();
     drawPlayer();
     drawHUD();
