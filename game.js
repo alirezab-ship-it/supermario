@@ -77,7 +77,7 @@
   // ---- Entities -----------------------------------------------------------
   function makePlayer() {
     return {
-      x: 40, y: GROUND_Y - 48, w: 32, h: 48,
+      x: 40, y: GROUND_Y - 48, w: 30, h: 48,
       vx: 0, vy: 0,
       grounded: false,
       facing: 1,
@@ -405,70 +405,41 @@
     }
   }
 
-  // Pixel-art sprite rendered on a 16-column grid; unit scales with player.w.
   function drawPlayer() {
     if (!player.alive) return;
     const px = player.x - cameraX;
     const py = player.y;
-    const w = player.w;
-    const U = w / 16;
+    const w = player.w, h = player.h;
+    const legOffset = player.animFrame === 1 ? 4 : 0;
 
     ctx.save();
     ctx.translate(px + w / 2, 0);
     ctx.scale(player.facing, 1);
     ctx.translate(-w / 2, 0);
 
-    const P = (col, row, cw, rh, color) => {
-      ctx.fillStyle = color;
-      ctx.fillRect(col * U, py + row * U, cw * U + 0.5, rh * U + 0.5);
-    };
-
-    const cap = '#15161a', capShade = '#000000', hair = '#3b2412', skin = '#f2c29a',
-      eye = '#161616', mustache = '#3b2412', shirt = '#e6392f',
-      overalls = '#2b5fd9', overallsShade = '#1e46ab', glove = '#f4ede2',
-      button = '#ffd23f', shoe = '#33210f';
-
-    // Cap
-    P(4, 0, 8, 1, cap);
-    P(3, 1, 10, 1, cap);
-    P(3, 2, 12, 1, capShade);
-
-    // Face
-    P(3, 3, 1, 1, hair);
-    P(4, 3, 8, 1, skin);
-    P(13, 3, 1, 1, hair);
-    P(4, 4, 9, 1, skin);
-    P(2, 4, 2, 1, hair);
-    P(13, 4, 2, 1, hair);
-    P(10, 4, 2, 1, eye);
-    P(4, 5, 9, 1, skin);
-    P(4, 6, 9, 1, mustache);
-    P(5, 7, 7, 1, skin);
-    P(6, 8, 5, 1, skin);
-
-    // Torso, overalls bib and arms
-    P(1, 9, 14, 1, shirt);
-    P(1, 10, 14, 4, shirt);
-    P(5, 10, 6, 4, overalls);
-    P(5, 13, 6, 1, overallsShade);
-    P(7, 11, 2, 1, button);
-    P(0, 11, 2, 2, glove);
-    P(14, 11, 2, 2, glove);
-
-    // Pants
-    P(2, 14, 12, 5, overalls);
-    P(2, 18, 12, 1, overallsShade);
-
-    // Legs / shoes (animated)
-    if (!player.grounded) {
-      P(5, 18, 6, 4, shoe);
-    } else if (player.animFrame === 1) {
-      P(1, 20, 5, 4, shoe);
-      P(10, 17, 5, 3, shoe);
-    } else {
-      P(2, 19, 5, 5, shoe);
-      P(9, 19, 5, 5, shoe);
-    }
+    // legs
+    ctx.fillStyle = '#2255cc';
+    ctx.fillRect(4, py + h - 14, 10, 14 - legOffset);
+    ctx.fillRect(w - 14, py + h - 14, 10, 14 - (legOffset ? 0 : 4));
+    // body/overalls
+    ctx.fillStyle = '#e52521';
+    ctx.fillRect(2, py + 18, w - 4, h - 30);
+    ctx.fillStyle = '#2255cc';
+    ctx.fillRect(6, py + 24, w - 12, h - 38);
+    // head
+    ctx.fillStyle = '#f2c29a';
+    ctx.fillRect(4, py + 4, w - 8, 16);
+    // cap
+    ctx.fillStyle = '#e52521';
+    ctx.fillRect(2, py, w - 4, 8);
+    ctx.fillRect(w - 10, py + 6, 12, 6);
+    // eye
+    ctx.fillStyle = '#222';
+    ctx.fillRect(w - 12, py + 10, 3, 3);
+    // arms
+    ctx.fillStyle = '#e52521';
+    ctx.fillRect(-2, py + 20, 6, 12);
+    ctx.fillRect(w - 4, py + 20, 6, 12);
 
     ctx.restore();
   }
