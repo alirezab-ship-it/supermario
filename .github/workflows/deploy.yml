@@ -10,6 +10,7 @@ on:
       - "style.css"
       - "game.js"
       - "title-bg.jpg"
+      - "sounds/**"
   workflow_dispatch: {}
 
 jobs:
@@ -25,6 +26,6 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           password: ${{ secrets.DEPLOY_PASSWORD }}
-          source: "index.html,style.css,game.js,title-bg.jpg"
+          source: "index.html,style.css,game.js,title-bg.jpg,sounds/*"
           target: ${{ secrets.DEPLOY_PATH }}
           strip_components: 0
