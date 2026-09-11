@@ -49,11 +49,15 @@
     goombaSquash: 'sprites/goomba_squash.png',
     coin: 'sprites/coin.png',
     groundTile: 'sprites/ground_tile.png',
-    platformTile: 'sprites/platform_tile.png',
+    brickTile: 'sprites/brick_tile.png',
     stairTile: 'sprites/stair_tile.png',
     flagpole: 'sprites/flagpole.png',
     cloud: 'sprites/cloud.png',
     bgHills: 'sprites/bg_hills.png',
+    questionBlock: 'sprites/question_block.png',
+    pipe: 'sprites/pipe.png',
+    bush: 'sprites/bush.png',
+    castle: 'sprites/castle.png',
   };
   const images = {};
   for (const [key, src] of Object.entries(IMAGE_FILES)) {
@@ -132,6 +136,16 @@
     { x: 3050, min: 2800, max: 3200 },
     { x: 3500, min: 3350, max: 3700 },
   ];
+
+  // Purely decorative scenery (no collision) added for visual variety.
+  const bushDefs = [150, 550, 950, 1250, 1600, 2000, 2400, 2800, 3150, 3450, 3750];
+  const pipeDefs = [700, 1300, 2500, 3200];
+  const questionBlockDefs = [
+    { x: 160, y: 230 }, { x: 210, y: 230 }, { x: 260, y: 230 },
+    { x: 2320, y: 230 },
+    { x: 3320, y: 230 },
+  ];
+  const CASTLE_X = FLAG_X + 60;
 
   // ---- Entities -----------------------------------------------------------
   function makePlayer() {
@@ -440,10 +454,52 @@
       if (s.type === 'ground') {
         fillWithPattern('groundTile', '#8b5a2b', sx, s.y, s.w, s.h);
       } else if (s.type === 'platform') {
-        fillWithPattern('platformTile', '#c97a3d', sx, s.y, s.w, s.h);
+        fillWithPattern('brickTile', '#c97a3d', sx, s.y, s.w, s.h);
       } else if (s.type === 'stair') {
         fillWithPattern('stairTile', '#9c7a4c', sx, s.y, s.w, s.h);
       }
+    }
+  }
+
+  // Purely decorative scenery: bushes/pipes sit on the ground, question
+  // blocks float in place. None of these participate in collision.
+  function drawBushes() {
+    if (!imgReady('bush')) return;
+    for (const x of bushDefs) {
+      const sx = x - cameraX;
+      if (sx < -100 || sx > VIEW_W + 100) continue;
+      drawSpriteCentered(images.bush, sx, GROUND_Y + 6, 46, false);
+    }
+  }
+
+  function drawPipes() {
+    if (!imgReady('pipe')) return;
+    for (const x of pipeDefs) {
+      const sx = x - cameraX;
+      if (sx < -100 || sx > VIEW_W + 100) continue;
+      drawSpriteCentered(images.pipe, sx, GROUND_Y + 6, 110, false);
+    }
+  }
+
+  function drawQuestionBlocks() {
+    for (const q of questionBlockDefs) {
+      const sx = q.x - cameraX;
+      if (sx < -50 || sx > VIEW_W + 50) continue;
+      const size = 40;
+      if (imgReady('questionBlock')) {
+        ctx.drawImage(images.questionBlock, sx - size / 2, q.y - size / 2, size, size);
+      } else {
+        ctx.fillStyle = '#f2a63d';
+        ctx.fillRect(sx - size / 2, q.y - size / 2, size, size);
+      }
+    }
+  }
+
+  function drawCastle() {
+    const sx = CASTLE_X - cameraX;
+    if (sx < -300 || sx > VIEW_W + 300) return;
+    if (imgReady('castle')) {
+      drawSpriteCentered(images.castle, sx, GROUND_Y + 4, 260, false);
     }
   }
 
@@ -613,7 +669,11 @@
 
   function render() {
     drawBackground();
+    drawCastle();
     drawSolids();
+    drawPipes();
+    drawBushes();
+    drawQuestionBlocks();
     drawFlag();
     drawCoins();
     drawGoombas();
