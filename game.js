@@ -9,9 +9,9 @@
   const VIEW_W = canvas.width;
   const VIEW_H = canvas.height;
   const GROUND_Y = 400;
-  const GRAVITY = 0.5;
-  const MOVE_SPEED = 3.2;
-  const JUMP_VELOCITY = -10.5;
+  const GRAVITY = 0.34;
+  const MOVE_SPEED = 2.6;
+  const JUMP_VELOCITY = -12;
   const FRICTION = 0.8;
   const LEVEL_WIDTH = 4200;
 
@@ -179,11 +179,11 @@
   // ---- Update ---------------------------------------------------------
   function updatePlayer() {
     if (keys['ArrowLeft'] || keys['KeyA']) {
-      player.vx -= 0.6;
+      player.vx -= 0.5;
       player.facing = -1;
     }
     if (keys['ArrowRight'] || keys['KeyD']) {
-      player.vx += 0.6;
+      player.vx += 0.5;
       player.facing = 1;
     }
     player.vx *= FRICTION;
@@ -196,7 +196,7 @@
     }
 
     player.vy += GRAVITY;
-    if (player.vy > 14) player.vy = 14;
+    if (player.vy > 12) player.vy = 12;
 
     moveAndCollide(player, solids);
 
@@ -466,12 +466,30 @@
     drawHUD();
   }
 
-  function loop() {
-    update();
+  // Fixed 60Hz timestep so gameplay speed doesn't depend on the display's
+  // refresh rate (requestAnimationFrame fires once per monitor refresh,
+  // which is 90/120/144Hz on many screens, not always 60Hz).
+  const STEP_MS = 1000 / 60;
+  const MAX_STEPS_PER_FRAME = 5;
+  let lastTime = null;
+  let accumulator = 0;
+
+  function loop(now) {
+    if (lastTime === null) lastTime = now;
+    accumulator += Math.min(now - lastTime, 250);
+    lastTime = now;
+
+    let steps = 0;
+    while (accumulator >= STEP_MS && steps < MAX_STEPS_PER_FRAME) {
+      update();
+      accumulator -= STEP_MS;
+      steps++;
+    }
+
     render();
     requestAnimationFrame(loop);
   }
 
   resetLevel();
-  loop();
+  requestAnimationFrame(loop);
 })();
