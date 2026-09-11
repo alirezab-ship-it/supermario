@@ -1,0 +1,29 @@
+name: Deploy to server
+
+on:
+  push:
+    branches:
+      - claude/kind-cori-hizic9
+      - main
+    paths:
+      - "index.html"
+      - "style.css"
+      - "game.js"
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy game files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          password: ${{ secrets.DEPLOY_PASSWORD }}
+          source: "index.html,style.css,game.js"
+          target: ${{ secrets.DEPLOY_PATH }}
+          strip_components: 0
