@@ -40,6 +40,36 @@
     node.play().catch(() => {});
   }
 
+  // ---- Sprites (Gemini-generated pixel art) ------------------------------
+  const IMAGE_FILES = {
+    marioStand: 'sprites/mario_stand.png',
+    marioWalk: 'sprites/mario_walk.png',
+    marioJump: 'sprites/mario_jump.png',
+    goomba: 'sprites/goomba.png',
+    goombaSquash: 'sprites/goomba_squash.png',
+    coin: 'sprites/coin.png',
+    groundTile: 'sprites/ground_tile.png',
+    platformTile: 'sprites/platform_tile.png',
+  };
+  const images = {};
+  for (const [key, src] of Object.entries(IMAGE_FILES)) {
+    const img = new Image();
+    img.src = src;
+    images[key] = img;
+  }
+  function imgReady(key) {
+    const img = images[key];
+    return img && img.complete && img.naturalWidth > 0;
+  }
+  const patternCache = {};
+  function getPattern(key) {
+    if (patternCache[key]) return patternCache[key];
+    if (!imgReady(key)) return null;
+    const pattern = ctx.createPattern(images[key], 'repeat');
+    patternCache[key] = pattern;
+    return pattern;
+  }
+
   // ---- Level data -------------------------------------------------------
   // Pits: gaps in the ground. Falling into one costs a life.
   const pits = [
@@ -361,25 +391,33 @@
     ctx.fill();
   }
 
+  function fillWithPattern(patternKey, fallbackColor, sx, y, w, h) {
+    const pattern = getPattern(patternKey);
+    if (pattern) {
+      // Anchor the tile's top-left to this shape's own world position so the
+      // pattern doesn't "swim" relative to the world as the camera scrolls,
+      // and so each ground/platform's top edge always shows the tile's top.
+      if (pattern.setTransform) pattern.setTransform(new DOMMatrix().translate(sx, y));
+      ctx.fillStyle = pattern;
+    } else {
+      ctx.fillStyle = fallbackColor;
+    }
+    // Nearest-neighbor sampling avoids a thin seam where the canvas would
+    // otherwise blend each tile's edge pixels with the next repeat.
+    const prevSmoothing = ctx.imageSmoothingEnabled;
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillRect(Math.round(sx), Math.round(y), Math.round(w), Math.round(h));
+    ctx.imageSmoothingEnabled = prevSmoothing;
+  }
+
   function drawSolids() {
     for (const s of solids) {
       const sx = s.x - cameraX;
       if (sx + s.w < 0 || sx > VIEW_W) continue;
       if (s.type === 'ground') {
-        ctx.fillStyle = '#8b5a2b';
-        ctx.fillRect(sx, s.y, s.w, s.h);
-        ctx.fillStyle = '#3aa93a';
-        ctx.fillRect(sx, s.y, s.w, 10);
-      } else if (s.type === 'platform') {
-        ctx.fillStyle = '#c97a3d';
-        ctx.fillRect(sx, s.y, s.w, s.h);
-        ctx.fillStyle = '#e0a15c';
-        ctx.fillRect(sx, s.y, s.w, 5);
-      } else if (s.type === 'stair') {
-        ctx.fillStyle = '#9c7a4c';
-        ctx.fillRect(sx, s.y, s.w, s.h);
-        ctx.strokeStyle = '#6b5230';
-        ctx.strokeRect(sx, s.y, s.w, s.h);
+        fillWithPattern('groundTile', '#8b5a2b', sx, s.y, s.w, s.h);
+      } else if (s.type === 'platform' || s.type === 'stair') {
+        fillWithPattern('platformTile', '#c97a3d', sx, s.y, s.w, s.h);
       }
     }
   }
@@ -400,6 +438,21 @@
     ctx.fillRect(fx - 6, GROUND_Y - 6, flagpole.w + 12, 6);
   }
 
+  // Draws an image preserving its aspect ratio, scaled to targetHeight,
+  // horizontally centered at footX and bottom-aligned at footY (so sprites
+  // whose art extends above/beside the entity's hitbox still plant their
+  // feet on the ground correctly). Optionally flips horizontally.
+  function drawSpriteCentered(img, footX, footY, targetHeight, flip) {
+    const scale = targetHeight / img.naturalHeight;
+    const w = img.naturalWidth * scale;
+    const h = targetHeight;
+    ctx.save();
+    ctx.translate(footX, 0);
+    ctx.scale(flip ? -1 : 1, 1);
+    ctx.drawImage(img, -w / 2, footY - h, w, h);
+    ctx.restore();
+  }
+
   function drawCoins() {
     for (const c of coins) {
       if (c.taken) continue;
@@ -407,12 +460,22 @@
       if (cx < -20 || cx > VIEW_W + 20) continue;
       const cy = c.y + Math.sin(c.bob) * 3;
       const squish = Math.abs(Math.cos(c.bob));
-      ctx.fillStyle = '#ffd700';
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, c.r * squish + 1, c.r, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#c99b00';
-      ctx.stroke();
+      if (imgReady('coin')) {
+        const img = images.coin;
+        const size = c.r * 2.4;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(squish + 0.15, 1);
+        ctx.drawImage(img, -size / 2, -size / 2, size, size);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, c.r * squish + 1, c.r, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#c99b00';
+        ctx.stroke();
+      }
     }
   }
 
@@ -422,23 +485,32 @@
       if (gx + g.w < 0 || gx > VIEW_W) continue;
       if (!g.alive) {
         if (g.squashTimer > 20) continue;
-        ctx.fillStyle = '#7b4a2d';
-        ctx.fillRect(gx, g.y + g.h - 10, g.w, 10);
+        if (imgReady('goombaSquash')) {
+          drawSpriteCentered(images.goombaSquash, gx + g.w / 2, g.y + g.h, g.h * 0.55, false);
+        } else {
+          ctx.fillStyle = '#7b4a2d';
+          ctx.fillRect(gx, g.y + g.h - 10, g.w, 10);
+        }
         continue;
       }
-      ctx.fillStyle = '#8b5a2b';
-      ctx.beginPath();
-      ctx.ellipse(gx + g.w / 2, g.y + g.h / 2 + 4, g.w / 2, g.h / 2 - 2, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#4a2e15';
-      ctx.fillRect(gx + 4, g.y + g.h - 8, 8, 8);
-      ctx.fillRect(gx + g.w - 12, g.y + g.h - 8, 8, 8);
-      ctx.fillStyle = 'white';
-      ctx.fillRect(gx + 6, g.y + 10, 6, 6);
-      ctx.fillRect(gx + g.w - 12, g.y + 10, 6, 6);
-      ctx.fillStyle = 'black';
-      ctx.fillRect(gx + 8, g.y + 12, 3, 3);
-      ctx.fillRect(gx + g.w - 10, g.y + 12, 3, 3);
+      if (imgReady('goomba')) {
+        // The sprite faces left by default; flip it when moving right.
+        drawSpriteCentered(images.goomba, gx + g.w / 2, g.y + g.h, g.h * 1.35, g.vx > 0);
+      } else {
+        ctx.fillStyle = '#8b5a2b';
+        ctx.beginPath();
+        ctx.ellipse(gx + g.w / 2, g.y + g.h / 2 + 4, g.w / 2, g.h / 2 - 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#4a2e15';
+        ctx.fillRect(gx + 4, g.y + g.h - 8, 8, 8);
+        ctx.fillRect(gx + g.w - 12, g.y + g.h - 8, 8, 8);
+        ctx.fillStyle = 'white';
+        ctx.fillRect(gx + 6, g.y + 10, 6, 6);
+        ctx.fillRect(gx + g.w - 12, g.y + 10, 6, 6);
+        ctx.fillStyle = 'black';
+        ctx.fillRect(gx + 8, g.y + 12, 3, 3);
+        ctx.fillRect(gx + g.w - 10, g.y + 12, 3, 3);
+      }
     }
   }
 
@@ -447,33 +519,37 @@
     const px = player.x - cameraX;
     const py = player.y;
     const w = player.w, h = player.h;
-    const legOffset = player.animFrame === 1 ? 4 : 0;
 
+    const jumping = !player.grounded;
+    const walking = !jumping && Math.abs(player.vx) > 0.2;
+    const spriteKey = jumping ? 'marioJump' : (walking && player.animFrame === 1 ? 'marioWalk' : 'marioStand');
+
+    if (imgReady(spriteKey)) {
+      drawSpriteCentered(images[spriteKey], px + w / 2, py + h, h * 1.6, player.facing < 0);
+      return;
+    }
+
+    // Fallback flat-shape drawing while sprites are still loading.
+    const legOffset = player.animFrame === 1 ? 4 : 0;
     ctx.save();
     ctx.translate(px + w / 2, 0);
     ctx.scale(player.facing, 1);
     ctx.translate(-w / 2, 0);
 
-    // legs
     ctx.fillStyle = '#2255cc';
     ctx.fillRect(4, py + h - 14, 10, 14 - legOffset);
     ctx.fillRect(w - 14, py + h - 14, 10, 14 - (legOffset ? 0 : 4));
-    // body/overalls
     ctx.fillStyle = '#e52521';
     ctx.fillRect(2, py + 18, w - 4, h - 30);
     ctx.fillStyle = '#2255cc';
     ctx.fillRect(6, py + 24, w - 12, h - 38);
-    // head
     ctx.fillStyle = '#f2c29a';
     ctx.fillRect(4, py + 4, w - 8, 16);
-    // cap
     ctx.fillStyle = '#e52521';
     ctx.fillRect(2, py, w - 4, 8);
     ctx.fillRect(w - 10, py + 6, 12, 6);
-    // eye
     ctx.fillStyle = '#222';
     ctx.fillRect(w - 12, py + 10, 3, 3);
-    // arms
     ctx.fillStyle = '#e52521';
     ctx.fillRect(-2, py + 20, 6, 12);
     ctx.fillRect(w - 4, py + 20, 6, 12);
