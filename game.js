@@ -17,6 +17,29 @@
   const FRICTION = 0.8;
   const LEVEL_WIDTH = 4200;
 
+  // ---- Audio (ElevenLabs-generated SFX) ---------------------------------
+  const SOUND_FILES = {
+    jump: 'sounds/jump.mp3',
+    coin: 'sounds/coin.mp3',
+    stomp: 'sounds/stomp.mp3',
+    die: 'sounds/die.mp3',
+    win: 'sounds/win.mp3',
+    gameover: 'sounds/gameover.mp3',
+  };
+  const sounds = {};
+  for (const [key, src] of Object.entries(SOUND_FILES)) {
+    const a = new Audio(src);
+    a.preload = 'auto';
+    sounds[key] = a;
+  }
+  function playSound(key) {
+    const base = sounds[key];
+    if (!base) return;
+    const node = base.cloneNode();
+    node.volume = base.volume;
+    node.play().catch(() => {});
+  }
+
   // ---- Level data -------------------------------------------------------
   // Pits: gaps in the ground. Falling into one costs a life.
   const pits = [
@@ -171,6 +194,7 @@
 
   function killPlayer() {
     if (!player.alive) return;
+    playSound('die');
     lives -= 1;
     if (lives <= 0) {
       state = 'gameover';
@@ -199,6 +223,7 @@
     if ((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && player.grounded) {
       player.vy = JUMP_VELOCITY;
       player.grounded = false;
+      playSound('jump');
     }
 
     player.vy += GRAVITY;
@@ -249,6 +274,7 @@
           g.squashTimer = 0;
           player.vy = JUMP_VELOCITY * 0.6;
           score += 100;
+          playSound('stomp');
         } else {
           killPlayer();
         }
@@ -265,6 +291,7 @@
       if (aabb(player, box)) {
         c.taken = true;
         score += 10;
+        playSound('coin');
       }
     }
   }
@@ -287,11 +314,13 @@
       stateTimer++;
       player.vx = 0;
       if (stateTimer === 1) {
+        playSound('win');
         showOverlay('Level Complete!', `Score: ${score}  |  Time: ${elapsed.toFixed(1)}s`);
       }
     } else if (state === 'gameover') {
       stateTimer++;
       if (stateTimer === 1) {
+        playSound('gameover');
         showOverlay('Game Over', `Score: ${score}`);
       }
     }
