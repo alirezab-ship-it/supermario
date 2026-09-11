@@ -50,6 +50,10 @@
     coin: 'sprites/coin.png',
     groundTile: 'sprites/ground_tile.png',
     platformTile: 'sprites/platform_tile.png',
+    stairTile: 'sprites/stair_tile.png',
+    flagpole: 'sprites/flagpole.png',
+    cloud: 'sprites/cloud.png',
+    bgHills: 'sprites/bg_hills.png',
   };
   const images = {};
   for (const [key, src] of Object.entries(IMAGE_FILES)) {
@@ -363,18 +367,29 @@
     ctx.fillStyle = '#5c94fc';
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-    // Parallax hills
-    ctx.fillStyle = '#3aa93a';
-    const hillOffset = -(cameraX * 0.3) % 400;
-    for (let i = -1; i < 4; i++) {
-      const hx = hillOffset + i * 400;
-      ctx.beginPath();
-      ctx.arc(hx + 60, GROUND_Y + 20, 70, Math.PI, 0);
-      ctx.fill();
+    // Parallax hills (Gemini-generated tileable strip), falls back to
+    // procedural humps if the image hasn't loaded yet.
+    if (imgReady('bgHills')) {
+      const img = images.bgHills;
+      const hillH = 240;
+      const hillW = hillH * (img.naturalWidth / img.naturalHeight);
+      const hillOffset = -(cameraX * 0.3) % hillW;
+      const count = Math.ceil(VIEW_W / hillW) + 2;
+      for (let i = -1; i < count; i++) {
+        ctx.drawImage(img, hillOffset + i * hillW, GROUND_Y - hillH + 40, hillW, hillH);
+      }
+    } else {
+      ctx.fillStyle = '#3aa93a';
+      const hillOffset = -(cameraX * 0.3) % 400;
+      for (let i = -1; i < 4; i++) {
+        const hx = hillOffset + i * 400;
+        ctx.beginPath();
+        ctx.arc(hx + 60, GROUND_Y + 20, 70, Math.PI, 0);
+        ctx.fill();
+      }
     }
 
     // Clouds
-    ctx.fillStyle = '#ffffff';
     const cloudOffset = -(cameraX * 0.5) % 500;
     for (let i = -1; i < 5; i++) {
       const cx = cloudOffset + i * 500 + 100;
@@ -384,6 +399,14 @@
   }
 
   function drawCloud(x, y) {
+    if (imgReady('cloud')) {
+      const img = images.cloud;
+      const w = 70;
+      const h = w * (img.naturalHeight / img.naturalWidth);
+      ctx.drawImage(img, x - w / 2, y - h / 2, w, h);
+      return;
+    }
+    ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.arc(x, y, 18, 0, Math.PI * 2);
     ctx.arc(x + 20, y - 8, 20, 0, Math.PI * 2);
@@ -416,15 +439,34 @@
       if (sx + s.w < 0 || sx > VIEW_W) continue;
       if (s.type === 'ground') {
         fillWithPattern('groundTile', '#8b5a2b', sx, s.y, s.w, s.h);
-      } else if (s.type === 'platform' || s.type === 'stair') {
+      } else if (s.type === 'platform') {
         fillWithPattern('platformTile', '#c97a3d', sx, s.y, s.w, s.h);
+      } else if (s.type === 'stair') {
+        fillWithPattern('stairTile', '#9c7a4c', sx, s.y, s.w, s.h);
       }
     }
   }
 
+  const FLAG_POLE_FRAC = 0.154; // pole's x-position as a fraction of the sprite's width
+
   function drawFlag() {
     const fx = flagpole.x - cameraX;
-    if (fx < -50 || fx > VIEW_W + 50) return;
+    if (fx < -80 || fx > VIEW_W + 80) return;
+
+    if (imgReady('flagpole')) {
+      const img = images.flagpole;
+      const h = GROUND_Y - flagpole.y + 6;
+      const w = h * (img.naturalWidth / img.naturalHeight);
+      ctx.save();
+      if (state === 'won') {
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 20;
+      }
+      ctx.drawImage(img, fx - w * FLAG_POLE_FRAC, flagpole.y, w, h);
+      ctx.restore();
+      return;
+    }
+
     ctx.fillStyle = '#c9c9c9';
     ctx.fillRect(fx, flagpole.y, flagpole.w, flagpole.h);
     ctx.beginPath();
@@ -462,7 +504,7 @@
       const squish = Math.abs(Math.cos(c.bob));
       if (imgReady('coin')) {
         const img = images.coin;
-        const size = c.r * 2.4;
+        const size = c.r * 3;
         ctx.save();
         ctx.translate(cx, cy);
         ctx.scale(squish + 0.15, 1);
