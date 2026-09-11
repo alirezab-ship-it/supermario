@@ -179,11 +179,11 @@
   // ---- Update ---------------------------------------------------------
   function updatePlayer() {
     if (keys['ArrowLeft'] || keys['KeyA']) {
-      player.vx -= 0.5;
+      player.vx -= 0.55;
       player.facing = -1;
     }
     if (keys['ArrowRight'] || keys['KeyD']) {
-      player.vx += 0.5;
+      player.vx += 0.55;
       player.facing = 1;
     }
     player.vx *= FRICTION;
