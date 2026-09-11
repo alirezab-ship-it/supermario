@@ -5,6 +5,8 @@
   const overlayTitle = document.getElementById('overlay-title');
   const overlaySub = document.getElementById('overlay-sub');
   const overlayBtn = document.getElementById('overlay-btn');
+  const startScreen = document.getElementById('start-screen');
+  const startBtn = document.getElementById('start-btn');
 
   const VIEW_W = canvas.width;
   const VIEW_H = canvas.height;
@@ -96,7 +98,7 @@
   let lives = 3;
   let cameraX = 0;
   let elapsed = 0;
-  let state = 'playing'; // playing | won | dead | gameover
+  let state = 'start'; // start | playing | won | dead | gameover
   let stateTimer = 0;
 
   function resetLevel() {
@@ -125,6 +127,10 @@
   window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
   overlayBtn.addEventListener('click', () => resetGame());
+  startBtn.addEventListener('click', () => {
+    startScreen.classList.add('hidden');
+    state = 'playing';
+  });
 
   function showOverlay(title, sub) {
     overlayTitle.textContent = title;
@@ -264,7 +270,9 @@
   }
 
   function update() {
-    if (state === 'playing') {
+    if (state === 'start') {
+      return; // waiting for the player to press Start
+    } else if (state === 'playing') {
       elapsed += 1 / 60;
       updatePlayer();
       updateGoombas();

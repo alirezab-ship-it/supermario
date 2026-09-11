@@ -11,11 +11,23 @@
 <body>
   <div id="game-wrap">
     <h1>Super Plumber Bros</h1>
-    <canvas id="game" width="800" height="480"></canvas>
-    <div id="overlay" class="hidden">
-      <div id="overlay-title"></div>
-      <div id="overlay-sub"></div>
-      <button id="overlay-btn">Play Again</button>
+    <div id="stage">
+      <canvas id="game" width="800" height="480"></canvas>
+      <div id="start-screen">
+        <div id="start-content">
+          <p id="start-tagline">Run, jump, stomp goombas, and race to the flag!</p>
+          <ul id="start-info">
+            <li>Move: ← → / A D</li>
+            <li>Jump: Space / ↑ / W</li>
+          </ul>
+          <button id="start-btn">Start Game</button>
+        </div>
+      </div>
+      <div id="overlay" class="hidden">
+        <div id="overlay-title"></div>
+        <div id="overlay-sub"></div>
+        <button id="overlay-btn">Play Again</button>
+      </div>
     </div>
     <p class="hint">Move: ← → / A D &nbsp;|&nbsp; Jump: Space / ↑ / W &nbsp;|&nbsp; Stomp goombas, grab coins, reach the flag!</p>
   </div>
