@@ -54,6 +54,8 @@
     flagpole: 'sprites/flagpole.png',
     cloud: 'sprites/cloud.png',
     bgHills: 'sprites/bg_hills.png',
+    sky: 'sprites/sky.png',
+    sun: 'sprites/sun.png',
     questionBlock: 'sprites/question_block.png',
     pipe: 'sprites/pipe.png',
     bush: 'sprites/bush.png',
@@ -419,8 +421,18 @@
 
   // ---- Rendering --------------------------------------------------------
   function drawBackground() {
-    ctx.fillStyle = '#5c94fc';
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    if (imgReady('sky')) {
+      ctx.drawImage(images.sky, 0, 0, VIEW_W, VIEW_H);
+    } else {
+      ctx.fillStyle = '#5c94fc';
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
+
+    // The sun sits at a fixed screen position, far enough away that it
+    // doesn't need to scroll with the camera at all.
+    if (imgReady('sun')) {
+      ctx.drawImage(images.sun, VIEW_W - 170, 40, 110, 110);
+    }
 
     // Parallax hills (Gemini-generated tileable strip), falls back to
     // procedural humps if the image hasn't loaded yet.
